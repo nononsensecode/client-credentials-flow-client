@@ -42,8 +42,6 @@ class AccessTokenController(
         val authHeader = HttpHeaders()
         authHeader.set("Content-Type", "application/x-www-form-urlencoded")
 
-        println(clientCredentialsConfig.clientCredential)
-
         val params = LinkedMultiValueMap<String, String>()
         params["client_id"] = clientId
         params["client_secret"] = clientCredentialsConfig.clientCredential
