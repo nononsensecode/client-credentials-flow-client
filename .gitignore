@@ -7,4 +7,5 @@ build
 # Ignore intellij folder
 .idea
 
-client-secret.properties
+# One should not commit the client secret file to the git
+client-secret.yaml

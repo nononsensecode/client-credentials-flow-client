@@ -1,6 +1,9 @@
 package com.nononsensecode.client.credential.flow.controller
 
+import com.nononsensecode.client.credential.flow.config.ClientCredentialConfig
 import com.nononsensecode.client.credential.flow.dtos.AccessTokenDTO
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
@@ -13,37 +16,51 @@ import org.springframework.web.client.RestTemplate
 
 @RestController
 @RequestMapping("/api/v1.0/access-token")
-class AccessTokenController {
+class AccessTokenController(
+    @Value("\${oauth2.token_url}")
+    val tokenUrl: String,
+
+    @Value("\${oauth2.grant_type}")
+    val grantType: String,
+
+    @Value("\${oauth2.client_id}")
+    val clientId: String,
+
+    @Value("\${oauth2.scope}")
+    val scope: String,
+
+    @Value("\${oauth2.resource_server.url}")
+    val heroApiUrl: String,
+
+    val clientCredentialsConfig: ClientCredentialConfig
+) {
 
     @GetMapping
-    fun getAccessToken(): ResponseEntity<String> {
+    fun getAccessToken(): ResponseEntity<List<Hero>> {
         val restTemplate = RestTemplate()
-        val tokenUrl = "http://localhost:9000/auth/realms/heroes/protocol/openid-connect/token"
 
-        val headers = HttpHeaders()
-        headers.set("Content-Type", "application/x-www-form-urlencoded")
+        val authHeader = HttpHeaders()
+        authHeader.set("Content-Type", "application/x-www-form-urlencoded")
+
+        println(clientCredentialsConfig.clientCredential)
 
         val params = LinkedMultiValueMap<String, String>()
-        params["client_secret"] = "a61c25c4-9ad0-49a8-8e16-011283cfa6dc"
-        params["grant_type"] = "client_credentials"
-        params["client_id"] = "hero-app-client"
-        params["scope "] = "email heroes"
+        params["client_id"] = clientId
+        params["client_secret"] = clientCredentialsConfig.clientCredential
+        params["scope"] = scope
+        params["grant_type"] = grantType
 
-        val request = HttpEntity(params, headers)
+        val authRequest = HttpEntity(params, authHeader)
+        val authResponse = restTemplate.postForEntity(tokenUrl, authRequest, AccessTokenDTO::class.java)
+        val accessToken = authResponse.body!!
 
-        val accessToken = restTemplate.postForEntity(tokenUrl, request, AccessTokenDTO::class.java).body!!
+        val heroHeader = HttpHeaders()
+        heroHeader["content-type"] = "application/json"
+        heroHeader["authorization"] = "Bearer ${accessToken.token}"
 
-        println(accessToken)
+        val heroRequest = HttpEntity(null, heroHeader)
 
-        val apiUrl = "http://localhost:10001/api/heroes"
-
-        val apiHeaders = HttpHeaders()
-        apiHeaders.set("Content-Type", "application/json")
-        apiHeaders.set("authorization", "Bearer ${accessToken.token}")
-
-        val apiRequest = HttpEntity(null, headers)
-
-        return restTemplate.exchange(apiUrl, HttpMethod.GET, apiRequest, String::class.java)
+        return restTemplate.exchange(heroApiUrl, HttpMethod.GET, heroRequest, object : ParameterizedTypeReference<List<Hero>>() {})
     }
 }
 
